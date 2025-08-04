@@ -26,7 +26,7 @@
     "nodejs",
     "wrapper"
   ],
-  "author": "SAML SSO Helper Team",
+  "author": "Syed Mudaser Ali Kazmi (SMAK)",
   "license": "MIT",
   "dependencies": {
     "samlify": "^2.10.1",
@@ -50,10 +50,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/saml-sso-helper.git"
+    "url": "https://github.com/smali-kazmi/saml-sso-helper.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/saml-sso-helper/issues"
+    "url": "https://github.com/smali-kazmi/saml-sso-helper/issues"
   },
-  "homepage": "https://github.com/yourusername/saml-sso-helper#readme"
+  "homepage": "https://github.com/smali-kazmi/saml-sso-helper#readme"
 }
