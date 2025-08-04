@@ -1,6 +1,6 @@
 {
   "name": "saml-sso-helper",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Easy-to-use SAML SSO wrapper with encryption support for Node.js applications",
   "main": "index.js",
   "scripts": {
@@ -16,15 +16,24 @@
   },
   "keywords": [
     "saml",
-    "sso", 
+    "sso",
+    "single-sign-on",
     "authentication",
+    "authorization",
     "encryption",
     "identity-provider",
     "service-provider",
+    "idp",
+    "sp",
     "express",
     "middleware",
     "nodejs",
-    "wrapper"
+    "wrapper",
+    "security",
+    "enterprise",
+    "federation",
+    "saml2",
+    "xml-security"
   ],
   "author": "Syed Mudaser Ali Kazmi (SMAK)",
   "license": "MIT",
@@ -50,7 +59,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/smali-kazmi/saml-sso-helper.git"
+    "url": "git+https://github.com/smali-kazmi/saml-sso-helper.git"
   },
   "bugs": {
     "url": "https://github.com/smali-kazmi/saml-sso-helper/issues"
