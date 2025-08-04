@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const SAMLHelper = require('../index');
 
 const app = express();
@@ -12,12 +13,12 @@ const samlHelper = new SAMLHelper({
     partnerMetadataURL: 'http://localhost:3000/metadata',
     certificates: {
         signing: {
-            key: '../certificates/sp-signing.key',
-            cert: '../certificates/sp-signing.cert'
+            key: path.join(__dirname, '../certificates/sp-signing.key'),
+            cert: path.join(__dirname, '../certificates/sp-signing.cert')
         },
         encryption: {
-            key: '../certificates/sp-encrypt.key',
-            cert: '../certificates/sp-encrypt.cert'
+            key: path.join(__dirname, '../certificates/sp-encrypt.key'),
+            cert: path.join(__dirname, '../certificates/sp-encrypt.cert')
         }
     }
 });
