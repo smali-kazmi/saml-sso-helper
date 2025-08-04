@@ -1,0 +1,59 @@
+{
+  "name": "saml-sso-helper",
+  "version": "1.0.0",
+  "description": "Easy-to-use SAML SSO wrapper with encryption support for Node.js applications",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:wrapper": "node test-wrapper.js",
+    "demo": "node demo.js",
+    "demo:functionality": "node demo-functionality.js",
+    "example:idp": "node examples/basic-idp.js",
+    "example:sp": "node examples/basic-sp.js",
+    "start": "npm run demo"
+  },
+  "keywords": [
+    "saml",
+    "sso", 
+    "authentication",
+    "encryption",
+    "identity-provider",
+    "service-provider",
+    "express",
+    "middleware",
+    "nodejs",
+    "wrapper"
+  ],
+  "author": "SAML SSO Helper Team",
+  "license": "MIT",
+  "dependencies": {
+    "samlify": "^2.10.1",
+    "axios": "^1.11.0"
+  },
+  "devDependencies": {
+    "supertest": "^6.3.4",
+    "jest": "^29.7.0"
+  },
+  "peerDependencies": {
+    "express": "^4.18.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "files": [
+    "index.js",
+    "README.md",
+    "examples/",
+    "test-wrapper.js"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/saml-sso-helper.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/saml-sso-helper/issues"
+  },
+  "homepage": "https://github.com/yourusername/saml-sso-helper#readme"
+}
