@@ -114,7 +114,15 @@ const samlHelper = new SAMLHelper({
 const middleware = samlHelper.getExpressMiddleware();
 app.get('/metadata', middleware.idp.metadata);
 app.get('/sso', middleware.idp.sso);
-app.post('/assert', middleware.sp.assert);
+
+// Assert middleware sets req.sso and calls next()
+app.post('/assert', middleware.sp.assert, (req, res) => {
+    // Access parsed SAML data from req.sso
+    console.log('User:', req.sso.nameID);
+    console.log('Attributes:', req.sso.attributes);
+    req.session.user = req.sso.attributes;
+    res.redirect('/dashboard');
+});
 ```
 
 ### **5. Comprehensive User Attributes**
