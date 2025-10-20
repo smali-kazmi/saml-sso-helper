@@ -324,7 +324,7 @@ class SAMLHelper {
                     }
                 },
 
-                assert: async (req, res) => {
+                assert: async (req, res, next) => {
                     try {
                         const partnerURL = this.config.partnerMetadataURL;
 
@@ -336,25 +336,8 @@ class SAMLHelper {
                         const result = await this.parseLoginResponse(idp, req);
 
                         // Return normalized response
-                        res.json({
-                            success: true,
-                            message: 'SAML authentication successful',
-                            encryptionEnabled: this.config.encryption,
-                            user: {
-                                nameID: result.nameID,
-                                attributes: result.attributes,
-                                attributesCount: Object.keys(result.attributes).length
-                            },
-                            session: {
-                                sessionIndex: result.sessionIndex,
-                                conditions: result.conditions
-                            },
-                            metadata: {
-                                audience: result.audience,
-                                issuer: result.issuer
-                            },
-                            timestamp: new Date().toISOString()
-                        });
+                        req.sso = result;
+                        next();
                     } catch (error) {
                         console.error('Assertion Error:', error);
                         res.status(500).json({
