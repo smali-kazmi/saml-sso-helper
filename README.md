@@ -205,19 +205,31 @@ app.get('/sso', async (req, res) => {
 ### Response Parsing
 
 ```javascript
-// SP assertion handling with custom processing
-app.post('/assert', async (req, res) => {
-    try {
-        const middleware = samlHelper.getExpressMiddleware();
-        
-        // Custom handling before standard middleware
-        req.customProcessing = true;
-        
-        return middleware.sp.assert(req, res);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+// SP assertion handling - the middleware sets req.sso and calls next()
+app.post('/assert', middleware.sp.assert, (req, res) => {
+    // Access parsed SAML data from req.sso
+    const samlData = req.sso;
+    
+    console.log('User authenticated:', samlData.nameID);
+    console.log('User attributes:', samlData.attributes);
+    
+    // Create session or JWT token
+    req.session.user = {
+        email: samlData.nameID,
+        ...samlData.attributes
+    };
+    
+    res.redirect('/dashboard');
 });
+
+// On error, the middleware automatically sends:
+// {
+//   success: false,
+//   message: "SAML assertion failed",
+//   encryptionEnabled: true,
+//   error: "error details",
+//   timestamp: "2025-10-20T..."
+// }
 ```
 
 ## Testing
@@ -268,6 +280,62 @@ testSAMLFlow();
 - `parseLoginResponse(idp, request)` - Parse SAML response (SP)
 - `getMetadata(type)` - Get metadata XML
 - `getExpressMiddleware()` - Get Express.js middleware functions
+
+#### Express Middleware
+
+**SP Assert Middleware** (`middleware.sp.assert`)
+
+Handles SAML assertions from the IdP. This is a standard Express middleware that:
+
+- **On Success**: Sets `req.sso` with parsed user data and calls `next()`
+- **On Error**: Sends 500 status with JSON error response
+
+**req.sso Object Structure**:
+```javascript
+{
+    success: true,
+    nameID: "user@example.com",          // User identifier
+    attributes: {                         // User attributes from IdP
+        email: "user@example.com",
+        displayName: "John Doe",
+        firstName: "John",
+        lastName: "Doe"
+    },
+    sessionIndex: "_session_abc123",      // SAML session identifier
+    conditions: { /* SAML conditions */ }, // Validity conditions
+    audience: "https://sp.example.com",   // Intended audience
+    issuer: "https://idp.example.com",    // IdP that issued assertion
+    raw: { /* original parsed response */ } // Full raw response
+}
+```
+
+**Error Response**:
+```javascript
+{
+    success: false,
+    message: "SAML assertion failed",
+    encryptionEnabled: true,
+    error: "Error details...",
+    timestamp: "2025-10-20T12:34:56.789Z"
+}
+```
+
+**Usage Example**:
+```javascript
+app.post('/assert', middleware.sp.assert, (req, res) => {
+    // req.sso contains parsed SAML data
+    const user = req.sso;
+    
+    // Create session
+    req.session.user = {
+        email: user.nameID,
+        name: user.attributes.displayName,
+        ...user.attributes
+    };
+    
+    res.redirect('/dashboard');
+});
+```
 
 ## Troubleshooting
 
