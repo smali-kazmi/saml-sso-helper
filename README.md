@@ -141,7 +141,11 @@ const samlHelper = new SAMLHelper({
     // Advanced Options
     nameIDFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
     sessionTimeout: 5,                   // Minutes
-    signatureAlgorithm: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256'
+    signatureAlgorithm: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
+    
+    // Metadata Signing Requirements
+    authnRequestsSigned: true,           // SP: Declare if AuthnRequests will be signed
+    wantAuthnRequestsSigned: false       // IdP: Declare if IdP wants signed AuthnRequests
 });
 ```
 
@@ -156,6 +160,42 @@ ENTITY_ID=http://localhost:3000/metadata
 BASE_URL=http://localhost:3000
 PARTNER_METADATA_URL=http://localhost:4000/metadata
 ```
+
+### Metadata Signing Requirements
+
+Control how metadata declares signing requirements:
+
+**For Service Provider (SP)**:
+```javascript
+const samlHelper = new SAMLHelper({
+    authnRequestsSigned: true,  // Declares SP signs its AuthnRequests
+    // ... other config
+});
+```
+
+When `authnRequestsSigned` is set, the SP metadata will contain:
+```xml
+<SPSSODescriptor AuthnRequestsSigned="true" ...>
+```
+
+**For Identity Provider (IdP)**:
+```javascript
+const samlHelper = new SAMLHelper({
+    wantAuthnRequestsSigned: true,  // Declares IdP requires signed AuthnRequests
+    // ... other config
+});
+```
+
+When `wantAuthnRequestsSigned` is set, the IdP metadata will contain:
+```xml
+<IDPSSODescriptor WantAuthnRequestsSigned="true" ...>
+```
+
+**Important Notes**:
+- These settings control metadata declaration only
+- Both values are optional; if not specified, the attribute won't appear in metadata
+- Set to `false` to explicitly declare signing is not used/required
+- Actual runtime signing behavior depends on your SAML configuration
 
 ## Certificate Generation
 
