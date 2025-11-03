@@ -1,6 +1,6 @@
 {
   "name": "saml-sso-helper",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Easy-to-use SAML SSO wrapper with encryption support for Node.js applications",
   "main": "index.js",
   "scripts": {
