@@ -460,7 +460,27 @@ class SAMLHelper {
 
                         // Return normalized response
                         req.sso = result;
-                        next();
+                        // Auto-respond with JSON by default for backward compatibility
+                        if (this.config.assertAutoRespond === false || req.skipAutoRespond) {
+                            return next();
+                        }
+                        return res.status(200).json({
+                            success: true,
+                            message: 'SAML authentication successful',
+                            user: {
+                                nameID: result.nameID,
+                                attributes: result.attributes || {},
+                                attributesCount: Object.keys(result.attributes || {}).length
+                            },
+                            session: {
+                                sessionIndex: result.sessionIndex || null
+                            },
+                            metadata: {
+                                audience: result.audience || null,
+                                issuer: result.issuer || null
+                            },
+                            encryptionEnabled: this.config.encryption
+                        });
                     } catch (error) {
                         console.error('Assertion Error:', error);
                         res.status(500).json({
