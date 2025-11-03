@@ -234,13 +234,23 @@ class SAMLHelper {
         if (!metadata.startsWith('<?xml')) {
             metadata = `<?xml version="1.0" encoding="UTF-8"?>\n${metadata}`;
         }
-        // Inject/normalize signing requirements if configured
+        // Inject/normalize/remove signing requirements based on config
         try {
-            if (type === 'sp' && typeof this.config.authnRequestsSigned === 'boolean') {
-                metadata = this._setXmlAttr(metadata, 'SPSSODescriptor', 'AuthnRequestsSigned', String(this.config.authnRequestsSigned));
+            if (type === 'sp') {
+                if (typeof this.config.authnRequestsSigned === 'boolean') {
+                    metadata = this._setXmlAttr(metadata, 'SPSSODescriptor', 'AuthnRequestsSigned', String(this.config.authnRequestsSigned));
+                } else {
+                    // Remove the attribute if not explicitly configured (samlify may add defaults)
+                    metadata = this._removeXmlAttr(metadata, 'SPSSODescriptor', 'AuthnRequestsSigned');
+                }
             }
-            if (type === 'idp' && typeof this.config.wantAuthnRequestsSigned === 'boolean') {
-                metadata = this._setXmlAttr(metadata, 'IDPSSODescriptor', 'WantAuthnRequestsSigned', String(this.config.wantAuthnRequestsSigned));
+            if (type === 'idp') {
+                if (typeof this.config.wantAuthnRequestsSigned === 'boolean') {
+                    metadata = this._setXmlAttr(metadata, 'IDPSSODescriptor', 'WantAuthnRequestsSigned', String(this.config.wantAuthnRequestsSigned));
+                } else {
+                    // Remove the attribute if not explicitly configured (samlify may add defaults)
+                    metadata = this._removeXmlAttr(metadata, 'IDPSSODescriptor', 'WantAuthnRequestsSigned');
+                }
             }
         } catch (e) {
             console.warn('Metadata flag injection warning:', e.message);
@@ -691,6 +701,22 @@ class SAMLHelper {
             newTag = originalTag.replace('>', ` ${attrName}="${value}">`);
         }
         return xml.replace(originalTag, newTag);
+    }
+
+    _removeXmlAttr(xml, tagName, attrName) {
+        const tagRegex = new RegExp(`<${tagName}([^>]*)>`, 'i');
+        const match = xml.match(tagRegex);
+        if (!match) return xml;
+
+        const originalTag = match[0];
+        const attrRegex = new RegExp(`\\s${attrName}="[^"]*"`, 'i');
+
+        if (attrRegex.test(originalTag)) {
+            const newTag = originalTag.replace(attrRegex, '');
+            return xml.replace(originalTag, newTag);
+        }
+
+        return xml;
     }
 }
 
