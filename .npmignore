@@ -1,0 +1,59 @@
+# Test files
+test/
+*.test.js
+jest.config.js
+TEST-RESULTS.md
+
+# Demo files
+demo.js
+demo-functionality.js
+
+# Documentation drafts
+blog-part1-idp.md
+blog-part2-sp.md
+blog-post.md
+blog-post-short.md
+social-media-posts.md
+IMPLEMENTATION.md
+
+# Certificates (users should generate their own)
+certificates/
+
+# Git files
+.git/
+.gitignore
+.github/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencies
+node_modules/
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Misc
+*.bak
+*.tmp

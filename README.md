@@ -110,55 +110,283 @@ app.listen(4000, () => {
 
 ## Configuration Options
 
-### Constructor Options
+### Complete Configuration Reference
 
 ```javascript
 const samlHelper = new SAMLHelper({
-    // Core Settings
-    encryption: true,                    // Enable/disable encryption
-    entityID: 'http://your-entity-id',   // Your entity identifier
-    baseURL: 'http://your-base-url',     // Your base URL
-    partnerMetadataURL: 'http://...',    // Partner's metadata URL
+    // ============================================================
+    // REQUIRED OPTIONS
+    // ============================================================
     
-    // Certificates
+    entityID: 'http://your-domain.com/metadata',
+    // Required. Your unique SAML entity identifier (usually your metadata URL)
+    
+    baseURL: 'http://your-domain.com',
+    // Required. Base URL of your application (used to construct endpoints)
+    
     certificates: {
         signing: {
-            key: './path/to/signing.key',
-            cert: './path/to/signing.cert'
+            key: './path/to/signing.key',      // Required. Path to signing private key
+            cert: './path/to/signing.cert'      // Required. Path to signing certificate
         },
-        encryption: {                    // Optional, required if encryption=true
-            key: './path/to/encrypt.key',
-            cert: './path/to/encrypt.cert'
+        encryption: {
+            key: './path/to/encrypt.key',      // Optional. Required if encryption=true
+            cert: './path/to/encrypt.cert'      // Optional. Required if encryption=true
         }
     },
     
-    // User Attributes
-    attributes: [
-        'email', 'displayName', 'firstName', 
-        'lastName', 'age', 'gender', 'username'
-    ],
+    // ============================================================
+    // CORE OPTIONS
+    // ============================================================
     
-    // Advanced Options
+    encryption: true,
+    // Optional. Enable/disable encrypted SAML assertions
+    // Default: true
+    // Set to false to disable encryption (not recommended for production)
+    
+    partnerMetadataURL: 'http://partner-domain.com/metadata',
+    // Optional but recommended. URL to load partner's SAML metadata
+    // For SP: IdP metadata URL
+    // For IdP: SP metadata URL
+    // If not provided, you'll need to handle metadata loading manually
+    
+    // ============================================================
+    // USER ATTRIBUTES (IdP only)
+    // ============================================================
+    
+    attributes: ['email', 'displayName', 'firstName', 'lastName'],
+    // Optional. Array of user attributes to include in SAML response
+    // Default: ['email', 'displayName', 'firstName', 'lastName']
+    // Only used by Identity Provider
+    // Common attributes: email, displayName, firstName, lastName, 
+    //                    username, age, gender, department, role
+    
+    // ============================================================
+    // SAML PROTOCOL OPTIONS
+    // ============================================================
+    
     nameIDFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
-    sessionTimeout: 5,                   // Minutes
-    signatureAlgorithm: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
+    // Optional. Format for NameID in SAML assertions
+    // Default: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress'
+    // Other options:
+    //   - 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent'
+    //   - 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient'
+    //   - 'urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified'
     
-    // Metadata Signing Requirements
-    authnRequestsSigned: true,           // SP: Declare if AuthnRequests will be signed
-    wantAuthnRequestsSigned: false       // IdP: Declare if IdP wants signed AuthnRequests
+    sessionTimeout: 5,
+    // Optional. Session timeout in minutes for SAML assertions
+    // Default: 5
+    // Controls the NotOnOrAfter attribute in SAML response
+    
+    signatureAlgorithm: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
+    // Optional. Algorithm used for XML signatures
+    // Default: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256' (RSA-SHA256)
+    // Other options:
+    //   - 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha1' (not recommended)
+    //   - 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha512'
+    
+    // ============================================================
+    // METADATA SIGNING REQUIREMENTS
+    // ============================================================
+    
+    authnRequestsSigned: true,
+    // Optional. For SP: Declares if AuthnRequests will be signed
+    // If set to true: Adds AuthnRequestsSigned="true" to SP metadata
+    // If set to false: Adds AuthnRequestsSigned="false" to SP metadata
+    // If omitted: Attribute not included in metadata
+    // Note: This only controls metadata declaration, not actual signing behavior
+    
+    wantAuthnRequestsSigned: false,
+    // Optional. For IdP: Declares if IdP requires signed AuthnRequests
+    // If set to true: Adds WantAuthnRequestsSigned="true" to IdP metadata
+    // If set to false: Adds WantAuthnRequestsSigned="false" to IdP metadata
+    // If omitted: Attribute not included in metadata
+    // Note: This only controls metadata declaration, not actual validation
+    
+    // ============================================================
+    // MIDDLEWARE BEHAVIOR OPTIONS
+    // ============================================================
+    
+    assertAutoRespond: true,
+    // Optional. For SP: Control assert middleware behavior
+    // Default: true (middleware auto-responds with JSON)
+    // If true: middleware sends JSON response automatically
+    // If false: middleware sets req.sso and calls next()
+    // Useful if you want to add custom logic after SAML assertion
+    
+    // ============================================================
+    // LIFECYCLE HOOKS
+    // ============================================================
+    
+    onIdpLogout: async (logoutInfo) => {
+        // Optional. Callback function executed when IdP processes logout
+        // Receives: { nameID, sessionIndex, success }
+        // Use for custom cleanup (clear sessions, log audit trail, etc.)
+        console.log('User logged out:', logoutInfo.nameID);
+    }
 });
 ```
 
-### Environment Variables
+### Configuration Examples
 
-You can also use environment variables:
+#### Minimal Configuration (Development)
+
+```javascript
+const samlHelper = new SAMLHelper({
+    entityID: 'http://localhost:3000/metadata',
+    baseURL: 'http://localhost:3000',
+    encryption: false,  // Disable encryption for testing
+    certificates: {
+        signing: {
+            key: './certs/signing.key',
+            cert: './certs/signing.cert'
+        }
+    }
+});
+```
+
+#### Production Configuration (IdP)
+
+```javascript
+const samlHelper = new SAMLHelper({
+    // Required
+    entityID: 'https://idp.company.com/metadata',
+    baseURL: 'https://idp.company.com',
+    partnerMetadataURL: 'https://app.example.com/saml/metadata',
+    
+    // Certificates with encryption
+    certificates: {
+        signing: {
+            key: '/etc/saml/idp-signing.key',
+            cert: '/etc/saml/idp-signing.cert'
+        },
+        encryption: {
+            key: '/etc/saml/idp-encrypt.key',
+            cert: '/etc/saml/idp-encrypt.cert'
+        }
+    },
+    
+    // Security settings
+    encryption: true,
+    signatureAlgorithm: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
+    sessionTimeout: 30,
+    
+    // User attributes
+    attributes: [
+        'email', 'displayName', 'firstName', 'lastName',
+        'department', 'role', 'employeeId'
+    ],
+    
+    // Metadata flags
+    wantAuthnRequestsSigned: true,
+    
+    // Hooks
+    onIdpLogout: async (info) => {
+        await auditLog.record('logout', info);
+        await sessionStore.destroy(info.sessionIndex);
+    }
+});
+```
+
+#### Production Configuration (SP)
+
+```javascript
+const samlHelper = new SAMLHelper({
+    // Required
+    entityID: 'https://app.example.com/saml/metadata',
+    baseURL: 'https://app.example.com',
+    partnerMetadataURL: 'https://idp.company.com/metadata',
+    
+    // Certificates with encryption
+    certificates: {
+        signing: {
+            key: '/etc/saml/sp-signing.key',
+            cert: '/etc/saml/sp-signing.cert'
+        },
+        encryption: {
+            key: '/etc/saml/sp-encrypt.key',
+            cert: '/etc/saml/sp-encrypt.cert'
+        }
+    },
+    
+    // Security settings
+    encryption: true,
+    signatureAlgorithm: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
+    nameIDFormat: 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent',
+    
+    // Metadata flags
+    authnRequestsSigned: true,
+    
+    // Custom assert handling
+    assertAutoRespond: false  // Handle response in your own middleware
+});
+```
+
+### Configuration Options Quick Reference
+
+| Option | Type | Required | Default | Description |
+|--------|------|----------|---------|-------------|
+| `entityID` | string | ✅ Yes | - | Your unique SAML entity identifier |
+| `baseURL` | string | ✅ Yes | - | Base URL of your application |
+| `certificates.signing.key` | string | ✅ Yes | - | Path to signing private key file |
+| `certificates.signing.cert` | string | ✅ Yes | - | Path to signing certificate file |
+| `certificates.encryption.key` | string | ⚠️ Conditional | - | Path to encryption key (required if `encryption=true`) |
+| `certificates.encryption.cert` | string | ⚠️ Conditional | - | Path to encryption cert (required if `encryption=true`) |
+| `encryption` | boolean | No | `true` | Enable/disable encrypted assertions |
+| `partnerMetadataURL` | string | No | - | Partner's metadata URL (IdP URL for SP, SP URL for IdP) |
+| `attributes` | array | No | `['email', 'displayName', 'firstName', 'lastName']` | User attributes to include (IdP only) |
+| `nameIDFormat` | string | No | `'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress'` | Format for NameID in assertions |
+| `sessionTimeout` | number | No | `5` | Session timeout in minutes |
+| `signatureAlgorithm` | string | No | `'...rsa-sha256'` | XML signature algorithm |
+| `authnRequestsSigned` | boolean | No | - | SP metadata: Declare if AuthnRequests are signed |
+| `wantAuthnRequestsSigned` | boolean | No | - | IdP metadata: Declare if signed requests required |
+| `assertAutoRespond` | boolean | No | `true` | SP: Auto-respond with JSON from assert middleware |
+| `onIdpLogout` | function | No | - | Callback when IdP processes logout |
+
+### Using Environment Variables
+
+You can load configuration from environment variables:
+
+```javascript
+// Load configuration from environment
+const samlHelper = new SAMLHelper({
+    encryption: process.env.ENABLE_ENCRYPTION === 'true',
+    entityID: process.env.ENTITY_ID,
+    baseURL: process.env.BASE_URL,
+    partnerMetadataURL: process.env.PARTNER_METADATA_URL,
+    certificates: {
+        signing: {
+            key: process.env.SIGNING_KEY_PATH || './certs/signing.key',
+            cert: process.env.SIGNING_CERT_PATH || './certs/signing.cert'
+        },
+        encryption: {
+            key: process.env.ENCRYPT_KEY_PATH || './certs/encrypt.key',
+            cert: process.env.ENCRYPT_CERT_PATH || './certs/encrypt.cert'
+        }
+    },
+    sessionTimeout: parseInt(process.env.SESSION_TIMEOUT || '5'),
+    authnRequestsSigned: process.env.AUTHN_REQUESTS_SIGNED === 'true'
+});
+```
+
+Example `.env` file:
 
 ```bash
-# .env file
+# Core Settings
 ENABLE_ENCRYPTION=true
-ENTITY_ID=http://localhost:3000/metadata
-BASE_URL=http://localhost:3000
-PARTNER_METADATA_URL=http://localhost:4000/metadata
+ENTITY_ID=https://app.example.com/saml/metadata
+BASE_URL=https://app.example.com
+PARTNER_METADATA_URL=https://idp.company.com/metadata
+
+# Certificate Paths
+SIGNING_KEY_PATH=/etc/saml/signing.key
+SIGNING_CERT_PATH=/etc/saml/signing.cert
+ENCRYPT_KEY_PATH=/etc/saml/encrypt.key
+ENCRYPT_CERT_PATH=/etc/saml/encrypt.cert
+
+# SAML Options
+SESSION_TIMEOUT=30
+AUTHN_REQUESTS_SIGNED=true
 ```
 
 ### Metadata Signing Requirements
