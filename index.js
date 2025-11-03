@@ -229,10 +229,21 @@ class SAMLHelper {
         if (!entity) {
             throw new Error(`${type.toUpperCase()} not initialized`);
         }
-        const metadata = entity.getMetadata();
+        let metadata = entity.getMetadata();
         // Ensure XML declaration is present
         if (!metadata.startsWith('<?xml')) {
-            return `<?xml version="1.0" encoding="UTF-8"?>\n${metadata}`;
+            metadata = `<?xml version="1.0" encoding="UTF-8"?>\n${metadata}`;
+        }
+        // Inject/normalize signing requirements if configured
+        try {
+            if (type === 'sp' && typeof this.config.authnRequestsSigned === 'boolean') {
+                metadata = this._setXmlAttr(metadata, 'SPSSODescriptor', 'AuthnRequestsSigned', String(this.config.authnRequestsSigned));
+            }
+            if (type === 'idp' && typeof this.config.wantAuthnRequestsSigned === 'boolean') {
+                metadata = this._setXmlAttr(metadata, 'IDPSSODescriptor', 'WantAuthnRequestsSigned', String(this.config.wantAuthnRequestsSigned));
+            }
+        } catch (e) {
+            console.warn('Metadata flag injection warning:', e.message);
         }
         return metadata;
     }
@@ -663,6 +674,23 @@ class SAMLHelper {
                 </saml:Assertion>
             </samlp:Response>`
         };
+    }
+
+    _setXmlAttr(xml, tagName, attrName, value) {
+        const tagRegex = new RegExp(`<${tagName}([^>]*)>`, 'i');
+        const match = xml.match(tagRegex);
+        if (!match) return xml;
+
+        const originalTag = match[0];
+        const hasAttr = new RegExp(`\\s${attrName}="[^"]*"`, 'i').test(originalTag);
+
+        let newTag;
+        if (hasAttr) {
+            newTag = originalTag.replace(new RegExp(`${attrName}="[^"]*"`, 'i'), `${attrName}="${value}"`);
+        } else {
+            newTag = originalTag.replace('>', ` ${attrName}="${value}">`);
+        }
+        return xml.replace(originalTag, newTag);
     }
 }
 
