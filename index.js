@@ -353,6 +353,68 @@ class SAMLHelper {
                         res.status(500).json({ error: error.message });
                     }
                 }
+                ,
+
+                // Handle SP-initiated Single Logout (SLO) at IdP
+                slo: async (req, res) => {
+                    try {
+                        const partnerURL = this.config.partnerMetadataURL;
+                        if (!partnerURL) {
+                            throw new Error('Partner metadata URL not configured');
+                        }
+
+                        const sp = await this.loadPartnerMetadata(partnerURL, 'sp');
+                        const parsed = await this.parseLogoutRequest(sp, req);
+
+                        // Optional: custom cleanup hook on IdP side
+                        if (typeof this.config.onIdpLogout === 'function') {
+                            try { await this.config.onIdpLogout(parsed); } catch (e) { console.warn('onIdpLogout hook error:', e.message); }
+                        }
+
+                        const { binding, response } = await this.createLogoutResponse(sp, req, {
+                            relayState: req.body?.RelayState || req.query?.RelayState
+                        });
+
+                        if (binding === 'redirect') {
+                            return res.redirect(response.context);
+                        }
+                        const sloUrl = sp.entityMeta.getSingleLogoutService('post')?.[0]?.Location;
+                        return res.send(`
+                            <form method="POST" action="${sloUrl}" id="sloForm">
+                                <input type="hidden" name="SAMLResponse" value="${response.context}">
+                                <input type="hidden" name="RelayState" value="${req.body?.RelayState || req.query?.RelayState || ''}">
+                            </form>
+                            <script>document.getElementById('sloForm').submit();</script>
+                        `);
+                    } catch (error) {
+                        console.error('IdP SLO Error:', error);
+                        res.status(500).json({ success: false, message: 'SLO failed', error: error.message });
+                    }
+                },
+
+                // Initiate IdP-initiated logout towards SP
+                initiateLogout: async (req, res) => {
+                    try {
+                        const partnerURL = this.config.partnerMetadataURL;
+                        if (!partnerURL) {
+                            throw new Error('Partner metadata URL not configured');
+                        }
+
+                        const sp = await this.loadPartnerMetadata(partnerURL, 'sp');
+                        const nameID = req.body?.nameID || req.query?.nameID || req.user?.email;
+                        const sessionIndex = req.body?.sessionIndex || req.query?.sessionIndex;
+                        if (!nameID && !sessionIndex) {
+                            return res.status(400).json({ error: 'Missing nameID or sessionIndex' });
+                        }
+
+                        const binding = 'redirect';
+                        const reqObj = await this.idp.createLogoutRequest(sp, binding, { nameID, sessionIndex });
+                        return res.redirect(reqObj.context);
+                    } catch (error) {
+                        console.error('IdP initiateLogout Error:', error);
+                        res.status(500).json({ success: false, message: 'Failed to initiate SLO', error: error.message });
+                    }
+                }
             },
 
             // SP middleware  
