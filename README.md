@@ -309,6 +309,37 @@ Handles SAML assertions from the IdP. This is a standard Express middleware that
 }
 ```
 
+### Single Logout (SLO)
+
+Add routes on both SP and IdP:
+
+```javascript
+// Service Provider (SP)
+app.get('/logout', middleware.sp.logout);                   // Initiate SP-initiated logout
+app.all('/logout/callback', middleware.sp.logoutCallback);  // Handle LogoutResponse from IdP
+app.all('/slo', middleware.sp.slo);                         // Receive IdP-initiated LogoutRequest
+
+// Identity Provider (IdP)
+app.all('/slo', middleware.idp.slo);                        // Receive SP-initiated LogoutRequest and respond
+// Optional: IdP-initiated logout towards SP
+app.get('/initiate-logout', middleware.idp.initiateLogout);
+```
+
+SP-initiated flow:
+1. Client calls GET `/logout` on SP
+2. SP sends LogoutRequest (Redirect binding) to IdP
+3. IdP responds with LogoutResponse to SP at `/logout/callback`
+4. SP clears session and redirects to RelayState or `/`
+
+IdP-initiated flow:
+1. IdP sends LogoutRequest to SP `/slo`
+2. SP clears session and returns LogoutResponse to IdP
+
+Notes:
+- Uses Redirect binding by default; POST is automatically supported when requests arrive via POST
+- Provide `nameID`/`sessionIndex` to SP logout via session, body, or query; the middleware auto-detects
+- Optional hook: `config.onIdpLogout(parsed)` for custom cleanup on IdP
+
 **Error Response**:
 ```javascript
 {
