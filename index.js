@@ -100,7 +100,8 @@ class SAMLHelper {
             requestSignatureAlgorithm: config.signatureAlgorithm,
             validateInResponseTo: true,
             allowCreate: true,
-            isAssertionEncrypted: config.encryption
+            isAssertionEncrypted: config.encryption,
+            authnRequestsSigned: config.encryption || false
         };
 
         // Add encryption keys if encryption is enabled
