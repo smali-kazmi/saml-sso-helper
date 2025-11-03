@@ -238,6 +238,67 @@ class SAMLHelper {
     }
 
     /**
+     * Create SP-initiated LogoutRequest (SP -> IdP)
+     */
+    async createLogoutRequest(idp, { nameID, sessionIndex, binding = 'redirect', relayState } = {}) {
+        if (!this.sp) {
+            throw new Error('Service Provider not initialized. Call createServiceProvider() first.');
+        }
+        if (!nameID && !sessionIndex) {
+            throw new Error('Logout requires at least nameID or sessionIndex');
+        }
+
+        const opts = {};
+        if (nameID) opts.nameID = nameID;
+        if (sessionIndex) opts.sessionIndex = sessionIndex;
+
+        const req = await this.sp.createLogoutRequest(idp, binding, opts);
+        return { binding, relayState, request: req };
+    }
+
+    /**
+     * Parse LogoutResponse on SP side (IdP -> SP)
+     */
+    async parseLogoutResponse(idp, request) {
+        if (!this.sp) {
+            throw new Error('Service Provider not initialized. Call createServiceProvider() first.');
+        }
+        const binding = request.method === 'POST' ? 'post' : 'redirect';
+        const result = await this.sp.parseLogoutResponse(idp, binding, request);
+        return { success: true, raw: result };
+    }
+
+    /**
+     * Parse LogoutRequest on IdP side (SP -> IdP)
+     */
+    async parseLogoutRequest(sp, request) {
+        if (!this.idp) {
+            throw new Error('Identity Provider not initialized. Call createIdentityProvider() first.');
+        }
+        const binding = request.method === 'POST' ? 'post' : 'redirect';
+        const result = await this.idp.parseLogoutRequest(sp, binding, request);
+        const extract = result.extract || result;
+        return {
+            success: true,
+            nameID: extract.nameID || extract.nameid,
+            sessionIndex: extract.sessionIndex,
+            raw: result
+        };
+    }
+
+    /**
+     * Create LogoutResponse on IdP side (IdP -> SP)
+     */
+    async createLogoutResponse(sp, request, { binding, relayState } = {}) {
+        if (!this.idp) {
+            throw new Error('Identity Provider not initialized. Call createIdentityProvider() first.');
+        }
+        const usedBinding = binding || (request.method === 'POST' ? 'post' : 'redirect');
+        const res = await this.idp.createLogoutResponse(sp, usedBinding, request, 'success', relayState);
+        return { binding: usedBinding, relayState, response: res };
+    }
+
+    /**
      * Generate Express.js middleware for SAML endpoints
      */
     getExpressMiddleware() {
