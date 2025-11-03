@@ -491,6 +491,122 @@ class SAMLHelper {
                             timestamp: new Date().toISOString()
                         });
                     }
+                },
+
+                // Initiate SP-initiated logout (SP -> IdP)
+                logout: async (req, res) => {
+                    try {
+                        const partnerURL = this.config.partnerMetadataURL;
+                        if (!partnerURL) {
+                            throw new Error('Partner metadata URL not configured');
+                        }
+
+                        const idp = await this.loadPartnerMetadata(partnerURL, 'idp');
+
+                        const nameID =
+                            req.session?.user?.email ||
+                            req.session?.user?.nameID ||
+                            req.sso?.nameID ||
+                            req.body?.nameID ||
+                            req.query?.nameID;
+
+                        const sessionIndex =
+                            req.session?.user?.sessionIndex ||
+                            req.sso?.sessionIndex ||
+                            req.body?.sessionIndex ||
+                            req.query?.sessionIndex;
+
+                        if (!nameID && !sessionIndex) {
+                            return res.status(400).json({ error: 'Missing nameID or sessionIndex' });
+                        }
+
+                        const relayState = req.query?.RelayState || req.body?.RelayState || req.query?.returnTo || '/';
+                        const { request } = await this.createLogoutRequest(idp, {
+                            nameID,
+                            sessionIndex,
+                            binding: 'redirect',
+                            relayState
+                        });
+
+                        return res.redirect(request.context);
+                    } catch (error) {
+                        console.error('SP Logout Error:', error);
+                        res.status(500).json({ success: false, message: 'Failed to initiate logout', error: error.message });
+                    }
+                },
+
+                // Handle LogoutResponse from IdP (callback)
+                logoutCallback: async (req, res) => {
+                    try {
+                        const partnerURL = this.config.partnerMetadataURL;
+                        if (!partnerURL) {
+                            throw new Error('Partner metadata URL not configured');
+                        }
+
+                        const idp = await this.loadPartnerMetadata(partnerURL, 'idp');
+                        await this.parseLogoutResponse(idp, req);
+
+                        // Destroy local session after successful logout
+                        try {
+                            if (typeof req.session?.destroy === 'function') {
+                                await new Promise((resolve) => req.session.destroy(() => resolve()));
+                            } else {
+                                req.session = null;
+                            }
+                        } catch (e) {
+                            console.warn('Session destroy warning:', e.message);
+                        }
+
+                        const returnTo = req.query?.RelayState || req.body?.RelayState || '/';
+                        if (req.accepts('html')) {
+                            return res.redirect(returnTo);
+                        }
+                        return res.json({ success: true });
+                    } catch (error) {
+                        console.error('SP Logout Callback Error:', error);
+                        res.status(500).json({ success: false, message: 'Logout callback failed', error: error.message });
+                    }
+                },
+
+                // Handle IdP-initiated LogoutRequest (IdP -> SP)
+                slo: async (req, res) => {
+                    try {
+                        const partnerURL = this.config.partnerMetadataURL;
+                        if (!partnerURL) {
+                            throw new Error('Partner metadata URL not configured');
+                        }
+
+                        const idp = await this.loadPartnerMetadata(partnerURL, 'idp');
+                        const binding = req.method === 'POST' ? 'post' : 'redirect';
+                        const result = await this.sp.parseLogoutRequest(idp, binding, req);
+
+                        // Destroy local session
+                        try {
+                            if (typeof req.session?.destroy === 'function') {
+                                await new Promise((resolve) => req.session.destroy(() => resolve()));
+                            } else {
+                                req.session = null;
+                            }
+                        } catch (e) {
+                            console.warn('Session destroy warning:', e.message);
+                        }
+
+                        const response = await this.sp.createLogoutResponse(idp, binding, req, 'success');
+                        if (binding === 'redirect') {
+                            return res.redirect(response.context);
+                        }
+                        const sloUrl = idp.entityMeta.getSingleLogoutService('post')?.[0]?.Location;
+                        return res.send(`
+                            <form method="POST" action="${sloUrl}" id="sloForm">
+                                <input type="hidden" name="SAMLResponse" value="${response.context}">
+                                <input type="hidden" name="RelayState" value="${req.body?.RelayState || req.query?.RelayState || ''}">
+                            </form>
+                            <script>document.getElementById('sloForm').submit();</script>
+                        `);
+                    } catch (error) {
+                        console.error('SP SLO Error:', error);
+                        res.status(500).json({ success: false, message: 'SLO processing failed', error: error.message });
+                    }
                 }
             }
         };
